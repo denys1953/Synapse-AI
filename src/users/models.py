@@ -4,11 +4,9 @@ from typing import TYPE_CHECKING, List
 from src.database import Base
 
 from sqlalchemy import Boolean, DateTime, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 import sqlalchemy as sa
 
-if TYPE_CHECKING:
-    from src.recipes.models import Recipe
 
 class User(Base):
     __tablename__ = "users"
@@ -32,4 +30,3 @@ class User(Base):
         nullable=False,
     )
 
-    recipes: Mapped[List["Recipe"]] = relationship(back_populates="author")

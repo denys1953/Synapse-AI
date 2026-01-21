@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     OPENAI_MODEL_NAME: str
     OPENAI_EMBEDDING_MODEL: str
 
+    # ChromaDB
+    CHROMADB_HOST: str
+    CHROMADB_PORT: int
+
+    # LangChain
+    SEARCH_MODE: str = "base" 
+
+    # LangSmith
+    LANGCHAIN_TRACING_V2: Optional[bool] = False
+    LANGCHAIN_API_KEY: Optional[str] = None
+    LANGCHAIN_PROJECT: Optional[str] = None
+    LANGCHAIN_ENDPOINT: Optional[str] = None
+    
     @property
     def database_url(self) -> str:
         password = quote_plus(self.POSTGRES_PASSWORD) if self.POSTGRES_PASSWORD else ""

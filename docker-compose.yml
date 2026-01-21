@@ -45,6 +45,7 @@ services:
     volumes:
       - .:/app
       - /app/.venv # To persist virtual environment
+      - ./storage:/app/storage
     depends_on:
       postgres:
         condition: service_healthy
