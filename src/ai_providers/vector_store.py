@@ -29,17 +29,24 @@ class VectorService:
     def get_retriever(self, notebook_id: int, mode: str = "base", source_id: int = None):
         db = self.get_collection(notebook_id)
 
+        print(source_id)
+
         search_filter = {"notebook_id": notebook_id}
         if source_id:
-            search_filter["source_id"] = source_id
+            search_filter = {
+                "$and": [
+                    {"notebook_id": notebook_id},
+                    {"source_id": source_id}
+                ]
+            }
 
         if mode == "mmr":
-            return db.as_retriever(search_type="mmr", search_kwargs={"k": 5}, filter=search_filter)
+            return db.as_retriever(search_type="mmr", search_kwargs={"k": 5, "filter": search_filter})
 
         if mode == "multiquery" and self.llm:
             return MultiQueryRetriever.from_llm(
-                retriever=db.as_retriever(filter=search_filter), 
+                retriever=db.as_retriever(search_kwargs={"filter": search_filter}), 
                 llm=self.llm
             )
 
-        return db.as_retriever(search_kwargs={"k": 5}, filter=search_filter)
+        return db.as_retriever(search_kwargs={"k": 5, "filter": search_filter})

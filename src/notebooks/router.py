@@ -8,6 +8,7 @@ from .schemas import NotebookSchema, QuestionRequest
 from .service import add_notebook, save_upload_file, send_question_to_llm
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 router = APIRouter()
@@ -47,5 +48,6 @@ async def ask_question(
     request: QuestionRequest,
     vector_service: VectorServiceDep,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    return await send_question_to_llm(notebook_id, request, vector_service, current_user)
+    return await send_question_to_llm(notebook_id, request, vector_service, current_user, db)

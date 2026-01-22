@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Postgres
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = ""
-    POSTGRES_DB: str = "recipes"
+    POSTGRES_DB: str = "synapse_ai"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 

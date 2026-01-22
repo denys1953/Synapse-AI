@@ -4,6 +4,7 @@ from src.users.models import User
 from .models import Notebook, Source
 from .schemas import QuestionRequest
 from src.ai_providers.vector_store import VectorService
+from src.ai_providers.service import find_context, get_llm_answer
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -49,11 +50,7 @@ async def save_upload_file(
         content = await file.read()
         buffer.write(content)
 
-    new_source = Source(
-        notebook_id=notebook_id,
-        file_path=str(dest_path),
-        title=file.filename,
-    )
+    new_source = Source(notebook_id=notebook_id, file_path=str(dest_path), title=file.filename)
 
     db.add(new_source)
     await db.commit()
@@ -65,15 +62,16 @@ async def send_question_to_llm(
     request: QuestionRequest,
     vector_service: VectorService,
     current_user: User,
+    db: AsyncSession,
 ):
-    retriever = vector_service.get_retriever(
-        notebook_id=notebook_id,
-        mode=request.mode,
-        source_id=request.source_id,
-    )
+    query = select(Notebook).where(Notebook.id == notebook_id, Notebook.user_id == current_user.id)
+    result = await db.execute(query)
+    notebook = result.scalars().first()
+    if not notebook:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+    
+    context = await find_context(notebook_id, request, vector_service, current_user)
 
-    docs = await retriever.ainvoke(request.question)
+    answer = await get_llm_answer(query=request.question, context=context, llm=vector_service.llm)
 
-    contexts = [doc.page_content for doc in docs]
-
-    return contexts
+    return answer
