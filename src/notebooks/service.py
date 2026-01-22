@@ -1,7 +1,7 @@
 import uuid
 
 from src.users.models import User
-from .models import Notebook, Source
+from .models import Notebook, Source, ChatMessage
 from .schemas import QuestionRequest
 from src.ai_providers.vector_store import VectorService
 from src.ai_providers.service import find_context, get_llm_answer
@@ -57,6 +57,27 @@ async def save_upload_file(
     await db.refresh(new_source)
     return new_source
 
+async def save_chat_message(
+    db: AsyncSession,
+    notebook_id: int,
+    message_role: str,
+    message_content: str,
+):
+    new_message = ChatMessage(notebook_id=notebook_id, role=message_role, content=message_content)
+    db.add(new_message)
+    await db.commit()
+    await db.refresh(new_message)
+    return new_message
+
+async def get_chat_history(
+    db: AsyncSession,
+    notebook_id: int,
+    limit: int = 10,
+):
+    query = select(ChatMessage).where(ChatMessage.notebook_id == notebook_id).order_by(ChatMessage.created_at.desc()).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
+
 async def send_question_to_llm(
     notebook_id: int,
     request: QuestionRequest,
@@ -70,8 +91,13 @@ async def send_question_to_llm(
     if not notebook:
         raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
     
-    context = await find_context(notebook_id, request, vector_service, current_user)
+    chat_history = await get_chat_history(db, notebook_id)
+    
+    context = await find_context(notebook_id, request, vector_service)
 
-    answer = await get_llm_answer(query=request.question, context=context, llm=vector_service.llm)
+    response = await get_llm_answer(query=request.question, context=context, chat_history=chat_history, llm=vector_service.llm)
 
-    return answer
+    await save_chat_message(db, notebook_id, "human", request.question)
+    await save_chat_message(db, notebook_id, "ai", response.answer)
+
+    return response

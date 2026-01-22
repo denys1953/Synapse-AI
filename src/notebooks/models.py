@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from src.database import Base
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import DateTime, Integer, String, ForeignKey
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Text
 import sqlalchemy as sa
 
 
@@ -54,3 +54,18 @@ class Source(Base):
     )
 
     notebook: Mapped["Notebook"] = relationship(back_populates="sources")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    notebook_id: Mapped[int] = mapped_column(ForeignKey("notebooks.id"))
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=datetime.now(tz=UTC),
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+        nullable=False,
+    )
