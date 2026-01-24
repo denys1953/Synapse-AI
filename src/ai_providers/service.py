@@ -1,3 +1,4 @@
+from src.notebooks.schemas import QuestionRequest
 from .vector_store import VectorService
 from .schemas import AskQuestionResponse
 from .prompts import qa_prompt, rephrase_prompt
@@ -28,13 +29,13 @@ def prepare_chat_history(db_messages: list) -> list:
 
 async def find_context(
     notebook_id: int,
-    request: dict,
+    request: QuestionRequest,
     vector_service: VectorService,
 ):
     retriever = vector_service.get_retriever(
         notebook_id=notebook_id,
         mode=request.mode,
-        source_id=request.source_id,
+        source_ids=request.source_ids,
     )
 
     docs = await retriever.ainvoke(request.question)

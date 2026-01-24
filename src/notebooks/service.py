@@ -8,6 +8,7 @@ from src.ai_providers.service import find_context, get_llm_answer
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 from pathlib import Path
 
@@ -20,6 +21,40 @@ async def get_notebook_by_title(title: str, db: AsyncSession):
     query = select(Notebook).where(Notebook.title == title)
     result = await db.execute(query)
     return result.scalars().first()
+
+async def get_user_notebooks(user: User, db: AsyncSession, notebook_id: int = None):
+    if notebook_id:
+        query = select(Notebook).where(Notebook.user_id == user.id, Notebook.id == notebook_id)
+    else:
+        query = select(Notebook).where(Notebook.user_id == user.id)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+async def get_notebook_sources(
+    notebook_id: int,
+    current_user: User,
+    db: AsyncSession,
+):
+    query = select(Notebook).where(Notebook.id == notebook_id, Notebook.user_id == current_user.id).options(selectinload(Notebook.sources))
+    result = await db.execute(query)
+    notebook = result.scalars().first()
+    if not notebook:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+    
+    return notebook.sources
+
+async def get_notebook_chat_history(
+    notebook_id: int,
+    limit: int | None,
+    current_user: User,
+    db: AsyncSession,
+):
+    notebooks = await get_user_notebooks(current_user, db, notebook_id)
+    if not notebooks:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+    
+    chat_messages = await get_chat_history(db, notebook_id, limit)
+    return chat_messages
 
 async def add_notebook(title: str, current_user: User, db: AsyncSession):
     existing_notebook = await get_notebook_by_title(title, db)
@@ -74,7 +109,11 @@ async def get_chat_history(
     notebook_id: int,
     limit: int = 10,
 ):
-    query = select(ChatMessage).where(ChatMessage.notebook_id == notebook_id).order_by(ChatMessage.created_at.desc()).limit(limit)
+    if limit is None:
+        query = select(ChatMessage).where(ChatMessage.notebook_id == notebook_id).order_by(ChatMessage.id.desc())
+    else:
+        query = select(ChatMessage).where(ChatMessage.notebook_id == notebook_id).order_by(ChatMessage.id.desc()).limit(limit)
+    
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -85,19 +124,18 @@ async def send_question_to_llm(
     current_user: User,
     db: AsyncSession,
 ):
-    query = select(Notebook).where(Notebook.id == notebook_id, Notebook.user_id == current_user.id)
-    result = await db.execute(query)
-    notebook = result.scalars().first()
-    if not notebook:
+    notebooks = await get_user_notebooks(current_user, db, notebook_id=notebook_id)
+    if not notebooks:
         raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
     
+    await save_chat_message(db, notebook_id, "human", request.question)
+
     chat_history = await get_chat_history(db, notebook_id)
     
     context = await find_context(notebook_id, request, vector_service)
 
     response = await get_llm_answer(query=request.question, context=context, chat_history=chat_history, llm=vector_service.llm)
 
-    await save_chat_message(db, notebook_id, "human", request.question)
     await save_chat_message(db, notebook_id, "ai", response.answer)
 
     return response

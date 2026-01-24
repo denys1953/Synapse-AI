@@ -52,6 +52,19 @@ services:
     networks:
       - synapse_net
 
+  streamlit:
+    build: .
+    container_name: synapse_ui
+    command: uv run streamlit run src/frontend.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    depends_on:
+      - fastapi
+    networks:
+      - synapse_net
+
 volumes:
   postgres_data:
   chroma_data:

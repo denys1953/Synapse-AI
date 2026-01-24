@@ -30,10 +30,6 @@ async def process_pdf_to_vectorstore(
 
     db = vector_service.get_collection(notebook_id)
 
-    await run_in_threadpool(
-        db.add_documents,
-        splits,
-        ids=ids
-    )
+    await run_in_threadpool(db.add_documents, documents=splits, ids=ids)
 
     return len(splits)

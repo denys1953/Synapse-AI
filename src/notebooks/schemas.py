@@ -30,5 +30,5 @@ class SourceSchema(BaseModel):
 
 class QuestionRequest(BaseModel):
     question: str = Field(..., min_length=1)
-    source_id: Optional[int] = Field(None)
+    source_ids: Optional[list[int]] = Field(None)
     mode: str = Field("mmr")

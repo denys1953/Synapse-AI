@@ -15,7 +15,7 @@ class VectorService:
             port=settings.CHROMADB_PORT
         )
         self.embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
-        self.llm = ChatOpenAI(model=settings.OPENAI_MODEL_NAME, temperature=0)
+        self.llm = ChatOpenAI(model=settings.OPENAI_MODEL_NAME, temperature=0.5)
 
     def get_collection(self, notebook_id: int):
         collection_name = f"notebook_{notebook_id}" 
@@ -26,17 +26,15 @@ class VectorService:
             embedding_function=self.embeddings
         ) 
 
-    def get_retriever(self, notebook_id: int, mode: str = "base", source_id: int = None):
+    def get_retriever(self, notebook_id: int, mode: str = "base", source_ids: list[int] = None):
         db = self.get_collection(notebook_id)
 
-        print(source_id)
-
         search_filter = {"notebook_id": notebook_id}
-        if source_id:
+        if source_ids:
             search_filter = {
                 "$and": [
                     {"notebook_id": notebook_id},
-                    {"source_id": source_id}
+                    {"source_id": {"$in": source_ids}}
                 ]
             }
 

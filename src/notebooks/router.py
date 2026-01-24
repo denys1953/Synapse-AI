@@ -1,3 +1,4 @@
+from typing import Optional
 from src.ai_providers.dependencies import VectorServiceDep
 from src.ai_providers.vector_store import VectorService
 from src.ai_providers.ingestion import process_pdf_to_vectorstore
@@ -5,7 +6,7 @@ from src.auth.dependencies import get_current_user
 from src.database import get_db
 from src.users.models import User
 from .schemas import NotebookSchema, QuestionRequest
-from .service import add_notebook, save_upload_file, send_question_to_llm
+from .service import add_notebook, get_user_notebooks, save_upload_file, send_question_to_llm, get_notebook_sources, get_notebook_chat_history
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,16 +15,45 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter()
 vector_service = VectorService()
 
-@router.post("/add", response_model=NotebookSchema)
-async def create_notebook(title: str, current_user: User = Depends(get_current_user), db = Depends(get_db)):
-    return await add_notebook(title, current_user, db)
 
+@router.get("/", response_model=list[NotebookSchema])
+async def list_notebooks(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await get_user_notebooks(current_user, db)
+
+@router.get("/{notebook_id}/sources")
+async def list_notebook_sources(
+    notebook_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await get_notebook_sources(notebook_id, current_user, db)
+
+@router.get("/{notebook_id}/chat_history")
+async def get_chat_history(
+    notebook_id: int,
+    limit: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await get_notebook_chat_history(notebook_id, limit, current_user, db)
+
+@router.post("/add", response_model=NotebookSchema)
+async def create_notebook(
+    title: str, 
+    current_user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db)
+):
+    return await add_notebook(title, current_user, db)
+    
 @router.post("/source/{notebook_id}/upload")
 async def upload_source_to_notebook(
     notebook_id: int, 
     file: UploadFile, 
     current_user: User = Depends(get_current_user), 
-    db = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
