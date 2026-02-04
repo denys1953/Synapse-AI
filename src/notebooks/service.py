@@ -4,7 +4,7 @@ from src.users.models import User
 from .models import Notebook, Source, ChatMessage
 from .schemas import QuestionRequest
 from src.ai_providers.vector_store import VectorService
-from src.ai_providers.service import find_context, get_llm_answer
+from src.ai_providers.service import find_context, get_llm_answer, rephrase_user_query
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -132,9 +132,23 @@ async def send_question_to_llm(
 
     chat_history = await get_chat_history(db, notebook_id)
     
-    context = await find_context(notebook_id, request, vector_service)
+    standalone_question = await rephrase_user_query(
+        query=request.question,
+        chat_history=chat_history[1:] if len(chat_history) > 1 else [],
+        llm=vector_service.llm
+    )
+    
+    retrieval_request = request.model_copy()
+    retrieval_request.question = standalone_question
 
-    response = await get_llm_answer(query=request.question, context=context, chat_history=chat_history, llm=vector_service.llm)
+    context = await find_context(notebook_id, retrieval_request, vector_service)
+
+    response = await get_llm_answer(
+        query=standalone_question, 
+        context=context, 
+        chat_history=chat_history[1:] if len(chat_history) > 1 else [], 
+        llm=vector_service.llm
+    )
 
     await save_chat_message(db, notebook_id, "ai", response.answer)
 

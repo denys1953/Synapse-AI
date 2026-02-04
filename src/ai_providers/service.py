@@ -42,6 +42,25 @@ async def find_context(
 
     return format_docs(docs)
 
+async def rephrase_user_query(
+    query: str, 
+    chat_history: list,
+    llm: ChatOpenAI,
+) -> str:
+    if not chat_history:
+        return query
+    
+    prepared_history = prepare_chat_history(chat_history)
+    rephrase_chain = rephrase_prompt | llm
+    rephrased = await rephrase_chain.ainvoke(
+        {
+            "input": query, 
+            "chat_history": prepared_history
+        }
+    )
+    standalone_query = rephrased.content
+    return standalone_query
+
 async def get_llm_answer(
     query: str, 
     context: str, 
@@ -49,26 +68,12 @@ async def get_llm_answer(
     llm: ChatOpenAI,
 ):  
     structured_llm = llm.with_structured_output(AskQuestionResponse)
-
-    if chat_history:
-        chat_history = prepare_chat_history(chat_history)
-        standalone_question = await (rephrase_prompt | structured_llm).ainvoke(
-            {
-                "input": query, 
-                "chat_history": chat_history
-            }
-        )
-        standalone_question = standalone_question.answer
-        print("Rephrased question:", standalone_question)
-    else:
-        standalone_question = query
-
     chain = qa_prompt | structured_llm
 
     return await chain.ainvoke(
         {
-            "question": standalone_question, 
+            "question": query, 
             "context": context, 
-            "chat_history": chat_history
+            "chat_history": prepare_chat_history(chat_history) if chat_history else []
         }
     )
