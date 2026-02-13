@@ -43,3 +43,24 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Toke
     
     token = create_access_token(data={"sub": str(user.email)})
     return Token(access_token=token)
+
+async def get_or_create_google_user(db: AsyncSession, google_user_info: dict) -> models.User:
+    email = google_user_info.get("email")
+    if not email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Google account does not have an email.")
+
+    user = await get_user_by_email(db, email)
+    if user:
+        return user
+
+    new_user = models.User(
+        email=email,
+        full_name=google_user_info.get("name"),
+        hashed_password=None,
+        is_active=True
+    )
+
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user

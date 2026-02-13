@@ -15,9 +15,13 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "Synapse AI"
     DEBUG: bool = False
-    SECRET_KEY: str
+    SECRET_KEY: str = "supersecretkey"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    ALGORITHM: str
+    ALGORITHM: str = "HS256"
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
 
     # Server
     HOST: str = "0.0.0.0"
@@ -35,13 +39,13 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
 
     # External APIs
-    OPENAI_API_KEY: str
-    OPENAI_MODEL_NAME: str
-    OPENAI_EMBEDDING_MODEL: str
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL_NAME: str = ""
+    OPENAI_EMBEDDING_MODEL: str = ""
 
     # ChromaDB
-    CHROMADB_HOST: str
-    CHROMADB_PORT: int
+    CHROMADB_HOST: str = "" 
+    CHROMADB_PORT: int = 8000
 
     # LangChain
     SEARCH_MODE: str = "base" 
